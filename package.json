@@ -1,8 +1,12 @@
 {
-  "name": "hystrixjs",
+  "name": "hystrixjs-rrx",
   "version": "0.0.3",
   "description": "resilience module for NodeJS applications",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tranbtma/hystrixjs-rrx.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
