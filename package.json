@@ -1,5 +1,5 @@
 {
-  "name": "hystrixjs",
+  "name": "hystrixjs-rrx",
   "version": "0.2.0",
   "description": "resilience module for NodeJS applications",
   "main": "index.js",
