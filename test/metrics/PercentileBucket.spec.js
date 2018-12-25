@@ -1,14 +1,15 @@
-var Bucket = require("../../lib/metrics/PercentileBucket");
-var RollingNumberEvent = require("../../lib/metrics/RollingNumberEvent");
+'use strict';
 
-describe("PercentileBucket", function() {
-    var underTest;
+const Bucket = require("../../lib/metrics/PercentileBucket");
 
-    beforeEach(function() {
+describe("PercentileBucket", function () {
+    let underTest;
+
+    beforeEach(function () {
         underTest = new Bucket(5000);
     });
 
-    it("should add value to the bucket values", function() {
+    it("should add value to the bucket values", function () {
         underTest.addValue(1);
         expect(underTest.values).not.toBeUndefined();
         underTest.addValue(1);

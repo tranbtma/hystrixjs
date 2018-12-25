@@ -1,17 +1,31 @@
 {
-  "name": "hystrixjs-rrx",
-  "version": "0.0.3",
+  "name": "hystrixjs",
+  "version": "0.2.0",
   "description": "resilience module for NodeJS applications",
   "main": "index.js",
+  "scripts": {
+    "assert-no-rx": "! npm ls rx rxjs --only=prod | grep rx",
+    "babel": "gulp babel",
+    "clean-rx": "rm -rf node_modules/rx",
+    "clean-rxjs": "rm -rf node_modules/rxjs",
+    "install-rx": "ls node_modules/rx > /dev/null || npm install rx",
+    "install-rxjs": "ls node_modules/rxjs > /dev/null || npm install rxjs",
+    "test": "gulp test",
+    "test-all": "npm run assert-no-rx && npm run test-rx-latest && npm run test-rx-rxjs && npm run test-rxjs-latest && npm run test-missing-deps",
+    "test-missing-deps": "npm run babel && npm run clean-rxjs && npm run clean-rx && gulp test-missing-deps",
+    "test-rx-latest": "npm run babel && npm run clean-rxjs && npm run install-rx && gulp test",
+    "test-rxjs-latest": "npm run babel && npm run clean-rx && npm run install-rxjs && gulp test",
+    "test-rx-rxjs": "npm run babel && npm run install-rx && npm run install-rxjs && gulp test"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tranbtma/hystrixjs-rrx.git"
+    "url": "git@bitbucket.org:igor_sechyn/hystrixjs.git"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "author": {
+    "name": "Igor Sechyn (Atlassian)",
+    "email": "isechyn@atlassian.com"
   },
-  "author": "",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "devDependencies": {
     "express": "^4.13.3",
     "gulp": "^3.9.0",
@@ -23,17 +37,21 @@
     "http": "0.0.0",
     "jasmine": "^2.3.1",
     "jasmine-core": "^2.3.4",
-    "lodash": "^3.10.1",
+    "lodash": "^4.17.4",
     "minimist": "^1.1.2",
+    "q": "^1.0.1",
     "request": "^2.60.0",
     "request-promise-json": "^1.0.4",
     "rewire": "^2.3.4",
-    "sinon": "^1.16.1"
+    "rxjs": "^5.0.0",
+    "sinon": "^2.1.0",
+    "yargs": "^8.0.1"
   },
   "dependencies": {
-    "rx": "^3.0.0",
-    "q": "^1.0.1",
     "fast-stats": "0.0.3"
+  },
+  "peerDependencies": {
+    "rxjs": "^5.0.0"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

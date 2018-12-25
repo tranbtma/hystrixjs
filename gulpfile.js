@@ -4,6 +4,7 @@ var plumber = require('gulp-plumber');
 var jasmine = require('gulp-jasmine');
 var bump = require('gulp-bump');
 var git = require('gulp-git');
+var argv = require('yargs').argv;
 
 var path = require('path');
 
@@ -21,7 +22,16 @@ gulp.task('babel', function (cb) {
 });
 
 gulp.task('test', function () {
-    return gulp.src('test/**/*.spec.js')
+    return gulp.src(['test/**/*.spec.js', '!test/http/HystrixSSEStream-missing-deps.spec.js'])
+        .pipe(jasmine({
+            verbose:true,
+            includeStackTrace:true
+        })
+    );
+});
+
+gulp.task('test-missing-deps', function () {
+    return gulp.src(['test/**/*.spec.js', '!test/http/HystrixSSEStream.spec.js'])
         .pipe(jasmine({
             verbose:true,
             includeStackTrace:true
@@ -36,7 +46,7 @@ gulp.task('watch', function() {
 
 gulp.task('bump', function () {
     return gulp.src(['./package.json'])
-        .pipe(bump())
+        .pipe(bump({type: argv.type || 'patch'}))
         .pipe(gulp.dest('./'));
 });
 

@@ -1,6 +1,7 @@
 import ActualTime from "../util/ActualTime";
 import HystrixConfig from "../util/HystrixConfig";
 import Bucket from "./CounterBucket";
+import CumulativeSum from "./CumulativeSum";
 
 class RollingNumber {
 
@@ -11,6 +12,7 @@ class RollingNumber {
         this.windowLength = timeInMillisecond;
         this.numberOfBuckets = numberOfBuckets;
         this.buckets = [];
+        this.cumulativeSum = new CumulativeSum();
     }
 
     get bucketSizeInMilliseconds() {
@@ -44,6 +46,11 @@ class RollingNumber {
     }
 
     rollWindow(currentTime) {
+        let currentBucket = this.buckets[this.buckets.length-1];
+        if (currentBucket) {
+            this.cumulativeSum.addBucket(currentBucket);
+        }
+
         let newBucket = new Bucket(currentTime);
         if (this.buckets.length == this.numberOfBuckets) {
             this.buckets.shift();
@@ -59,7 +66,15 @@ class RollingNumber {
         return sum;
     }
 
+    getCumulativeSum(type) {
+        return this.getCurrentBucket().get(type) + this.cumulativeSum.get(type);
+    }
+
     reset() {
+        let currentBucket = this.buckets[this.buckets.length-1];
+        if (currentBucket) {
+            this.cumulativeSum.addBucket(currentBucket);
+        }
         this.buckets = [];
     }
 }

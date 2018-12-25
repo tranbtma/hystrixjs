@@ -1,8 +1,26 @@
 # HystrixJS - resilience library for NodeJs applications
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/7e3f7d85-125e-4deb-93f4-dd3f113952a0/517219/badge.svg)](https://semaphoreci.com/igorsechyn/hystrixjs)      
+[![npm version](https://badge.fury.io/js/hystrixjs.svg)](https://badge.fury.io/js/hystrixjs)      
 
 This library is inspired by the by the the Netflix [Hystrix](https://github.com/Netflix/Hystrix/wiki/) module for Java applications, which "is a latency and fault tolerance library designed to isolate points of access to remote systems, services and 3rd party libraries, stop cascading failure and enable resilience in complex distributed systems where failure is inevitable".
+
+## Including it in your project
+
+Install the hystrixjs via npm.
+
+```
+npm --save hystrixjs
+```
+
+### RxJs
+
+RxJs is required for the optional monitoring event stream.
+[RxJs 5](https://www.npmjs.com/package/rxjs) is an peer dependency and will
+generate an NPM warning if missing. [RxJs 3 and 4](https://www.npmjs.com/package/rx)
+are supported as peers but are deprecated and not listed in the `package.json`
+of this project. If you have included `rx@>=3.0.0` or are not using the
+monitoring event stream you can ignore NPM's peer dependency warning.
+For more details see [Monitoring](#monitoring) below.
 
 ## How does it work?
 
@@ -22,7 +40,7 @@ Since this library targets nodejs application, it is by far not as complex as th
 - measures execution times
 - trips a circuit-breaker to stop all requests to a particular service for a period of time, if the error percentage for this service passes a configured threshold
 - performs fallback logic, when the execution fails, times out or is short-circuits
-- provides a SSE of metrics, which can be visualised in [Hystrix Dashbord](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) for near real-time monitoring
+- provides a SSE of metrics, which can be visualised in [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) for near real-time monitoring
 
 Following diagram shows what happens when a function call is wrapped in a Command
 
@@ -70,7 +88,7 @@ Each generated command is cached based on its key supplied as the first paramete
 this request call will be marked as failure, which will influence the error percentage.
 If it returns null or false, the call will not be marked as failure. An example could be a 404 error, if the customer is not found.
 - *timeout* for request
-- *circuitBreakerRequestVolumeThreshold* - number of concurrent execution, that needs to be exceeded, before the circuit breaker will bother at all to calculate the health
+- *circuitBreakerRequestVolumeThreshold* - minimum number of requests in a rolling window that needs to be exceeded, before the circuit breaker will bother at all to calculate the health
 - *circuitBreakerForceOpened* - force this circuit breaker to be always opened
 - *circuitBreakerForceClosed* - force this circuit breaker to be always closed
 - *circuitBreakerErrorThresholdPercentage* - error percentage threshold to trip the circuit
@@ -79,7 +97,7 @@ If it returns null or false, the call will not be marked as failure. An example 
 - *percentileWindowNumberOfBuckets* - number of buckets within the percentile window
 - *percentileWindowLength* - length of the window to keep track of execution times
 - *requestVolumeRejectionThreshold* - maximum number of concurrent requests, which can be executed. Defaults to 0, i.e. no limitation
-- *fallbackTo* - function, which will be executed if the request fails
+- *fallbackTo* - function, which will be executed if the request fails. The function will be called with the error as the 1st argument and an array of the original args as the 2nd argument
 
 All of these options have defaults and does not have to be configured. See [HystrixConfig](https://bitbucket.org/igor_sechyn/hystrixjs/src/4cf3ba2dd28eb69481cca384bab21082670c0e00/src/util/HystrixConfig.js) for details. These can be overridden on app startup.
 
@@ -92,6 +110,7 @@ var promise = serviceCommand.execute(arguments)
 ```
 
 The *arguments* will be passed into the *run* function and the result will be a promise.
+If the *run* function fails, the arguments will passed to the fallback function (in an array) as the 2nd argument.
 
 ## How to test?
 
@@ -106,7 +125,7 @@ circuitFactory.resetCache();
 commandFactory.resetCache();
 ```
 
-The same problems occur during integration tests, only in this case there is no direct access to the artefacts. There could be two different strategies to solve this problem:
+The same problems occur during integration tests, only in this case there is no direct access to the artifacts. There could be two different strategies to solve this problem:
 
 - restarting the service under test before each test, which can significantly increase the execution time
 - adding and calling an endpoint to reset the metrics before each test
@@ -151,28 +170,23 @@ This will make the library to always check the circuit breaker before executing 
         }).then(failTest(done));
 ```
 
-## Monitoring
 
-The library provides a module [HystrixSSEStream](https://bitbucket.org/igor_sechyn/hystrixjs/src/cba4b540569223b3173da3eb9bdfe7a1376b7586/src/http/HystrixSSEStream.js?at=master) to export gathered metrics as a server side events stream. This stream can be used with [Hystrix Dashboard](https://github.com/Netflix/Hystrix/tree/master/hystrix-dashboard) to visualise the current state of the service, or its external communication points to be more precise:
+Failure to include either `rx` or `rxjs` will throw an Error at load
+time. If both `rx` and `rxjs` are included, `rxjs` will be used.
 
-![dashboard.png](https://bitbucket.org/repo/zq8Kzy/images/2774708950-dashboard.png)
+## Promises
 
-In order to use it, the service must expose another end point, which writes the SSE data into response:
+HystrixJS can work with any ES6 compatible promise implementation. By default all promises returned will be built-in Node.js promises.  To configure another library, specify the promise implementation when initializing the ```HystrixConfig``` module.  E.g. for Bluebird:
+
 ```javascript
-var hystrixSSEStream = require('hystrixjs').hystrixSSEStream;
-function hystrixStreamResponse(request, response) {
-    response.append('Content-Type', 'text/event-stream;charset=UTF-8');
-    response.append('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');
-    response.append('Pragma', 'no-cache');
-    return hystrixSSEStream.toObservable().subscribe(
-        function onNext(sseData) {
-            response.write('data: ' + sseData + '\n\n');
-        },
-        function onError(error) {console.log(error);
-        },
-        function onComplete() {
-            return response.end();
-        }
-    );
-};
+var Promise = require('bluebird');
+// Or Q
+// var Promise = require('q').Promise;
+
+var hystrixConfig = require('hystrixjs').hystrixConfig;
+hystrixConfig.init({
+    // any other hystrix options...
+    "hystrix.promise.implementation": Promise
+});
+
 ```

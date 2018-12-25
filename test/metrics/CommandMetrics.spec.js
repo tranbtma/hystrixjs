@@ -1,10 +1,10 @@
-var CommandMetrics = require("../../lib/metrics/CommandMetrics").CommandMetrics;
-var RollingNumberEvent = require("../../lib/metrics/RollingNumberEvent");
+'use strict';
+
+const CommandMetrics = require("../../lib/metrics/CommandMetrics").CommandMetrics;
+const RollingNumberEvent = require("../../lib/metrics/RollingNumberEvent");
 
 describe("CommandMetrics", function() {
-
-    var underTest;
-
+    let underTest;
 
     beforeEach(function() {
         underTest = new CommandMetrics("TestCommandMetrics", "defaultGroup");
@@ -50,6 +50,22 @@ describe("CommandMetrics", function() {
         expect(underTest.getRollingCount(RollingNumberEvent.SHORT_CIRCUITED)).toBe(3);
     });
 
+    it("should increment successful fallback counter", function() {
+        underTest.markFallbackSuccess();
+        expect(underTest.getRollingCount(RollingNumberEvent.FALLBACK_SUCCESS)).toBe(1);
+        underTest.markFallbackSuccess();
+        underTest.markFallbackSuccess();
+        expect(underTest.getRollingCount(RollingNumberEvent.FALLBACK_SUCCESS)).toBe(3);
+    });
+
+    it("should increment failed fallback counter", function() {
+        underTest.markFallbackFailure();
+        expect(underTest.getRollingCount(RollingNumberEvent.FALLBACK_FAILURE)).toBe(1);
+        underTest.markFallbackFailure();
+        underTest.markFallbackFailure();
+        expect(underTest.getRollingCount(RollingNumberEvent.FALLBACK_FAILURE)).toBe(3);
+    });
+
     it("should return the sum of all buckets in the window", function() {
         underTest.markTimeout();
         underTest.markTimeout();
@@ -85,6 +101,28 @@ describe("CommandMetrics", function() {
         underTest.markTimeout();
         underTest.markTimeout();
         underTest.markRejected();
+
+        expect(underTest.getHealthCounts().totalCount).toBe(8);
+        expect(underTest.getHealthCounts().errorCount).toBe(5);
+        expect(underTest.getHealthCounts().errorPercentage).toBe(62);
+    });
+
+    it("should return correct values as health counts excluding fallback success/failures", function(){
+
+        underTest.markSuccess();
+        underTest.markSuccess();
+        underTest.markSuccess();
+
+        underTest.markFailure();
+        underTest.markFailure();
+        underTest.markShortCircuited();
+        underTest.markTimeout();
+        underTest.markTimeout();
+        underTest.markRejected();
+
+        underTest.markFallbackSuccess();
+        underTest.markFallbackSuccess();
+        underTest.markFallbackFailure();
 
         expect(underTest.getHealthCounts().totalCount).toBe(8);
         expect(underTest.getHealthCounts().errorCount).toBe(5);

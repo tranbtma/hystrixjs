@@ -1,8 +1,31 @@
 import {Factory as CommandMetricsFactory} from "../metrics/CommandMetrics";
 import CircuitBreakerFactory from "./CircuitBreaker";
-import q from "q";
 import ActualTime from "../util/ActualTime"
 import HystrixConfig from "../util/HystrixConfig";
+
+function doFinally(promise, fn) {
+    return promise.then(
+        res => {
+            fn();
+            return res;
+        },
+        err => {
+            fn();
+            throw err;
+        }
+    );
+}
+
+function timeout(runWrapper, timeMs) {
+
+    return new HystrixConfig.promiseImplementation((resolve, reject) => {
+        let timer = setTimeout(() => reject(new Error('CommandTimeOut')), timeMs);
+
+        return doFinally(runWrapper().then(resolve, reject),
+            () => clearTimeout(timer));
+    });
+
+}
 
 export default class Command {
     constructor({
@@ -13,7 +36,7 @@ export default class Command {
             circuitConfig,
             requestVolumeRejectionThreshold = HystrixConfig.requestVolumeRejectionThreshold,
             timeout = HystrixConfig.executionTimeoutInMilliseconds,
-            fallback = function(error) {return q.reject(error);},
+            fallback = (err, args) => { return this.Promise.reject(err) },
             run = function() {throw new Error("Command must implement run method.")},
             isErrorHandler = function(error) {return error;}
         }) {
@@ -27,6 +50,7 @@ export default class Command {
         this.metricsConfig = metricsConfig;
         this.circuitConfig = circuitConfig;
         this.requestVolumeRejectionThreshold = requestVolumeRejectionThreshold;
+        this.Promise = HystrixConfig.promiseImplementation;
     }
 
     get circuitBreaker() {
@@ -38,49 +62,46 @@ export default class Command {
     }
 
     execute() {
-        if (this.requestVolumeRejectionThreshold != 0 && this.metrics.getCurrentExecutionCount() >= this.requestVolumeRejectionThreshold) {
-            return this.handleFailure(new Error("CommandRejected"));
-        }
-        if (this.circuitBreaker.allowRequest()) {
-            return this.runCommand.apply(this, arguments);
-        } else {
-            this.metrics.markShortCircuited();
-            return this.fallback(new Error("OpenCircuitError"));
-        }
+        //Resolve promise to guarantee execution/fallback is always deferred
+        return this.Promise.resolve()
+            .then(() => {
+                if (this.requestVolumeRejectionThreshold != 0 && this.metrics.getCurrentExecutionCount() >= this.requestVolumeRejectionThreshold) {
+                    return this.handleFailure(new Error("CommandRejected"), Array.prototype.slice.call(arguments));
+                }
+                if (this.circuitBreaker.allowRequest()) {
+                    return this.runCommand.apply(this, arguments);
+                } else {
+                    this.metrics.markShortCircuited();
+                    return this.fallback(new Error("OpenCircuitError"), Array.prototype.slice.call(arguments));
+                }
+            });
     }
 
     runCommand() {
         this.metrics.incrementExecutionCount();
         let start = ActualTime.getCurrentTime();
-        let promise = this.run.apply(this.runContext, arguments);
-        if (this.timeout > 0) {
-            promise = promise.timeout(this.timeout, "CommandTimeOut");
-        }
+        const args = arguments;
+        const runWrapper = () => this.run.apply(this.runContext, args);
+        let commandPromise = this.timeout > 0 ? timeout(runWrapper, this.timeout) : runWrapper();
+        commandPromise = commandPromise.then(
+                (res) => {
+                    this.handleSuccess(start);
+                    return res
+                }
+            )
+            .catch(err => this.handleFailure(err, Array.prototype.slice.call(arguments)));
 
-        return promise
-        .then((...args) => {
-                return this.handleSuccess(start, args);
-            }
-        )
-        .fail(err => {
-                return this.handleFailure(err);
-            }
-        )
-        .finally(() => {
-                this.metrics.decrementExecutionCount()
-            }
-        );
+        return doFinally(commandPromise, () => this.metrics.decrementExecutionCount());
     }
 
-    handleSuccess(start, args) {
+    handleSuccess(start) {
         let end = ActualTime.getCurrentTime();
         this.metrics.addExecutionTime(end - start);
         this.metrics.markSuccess();
         this.circuitBreaker.markSuccess();
-        return q.resolve.apply(null, args);
     }
 
-    handleFailure(err) {
+    handleFailure(err, args) {
         if (this.isError(err)) {
             if (err.message === "CommandTimeOut") {
                 this.metrics.markTimeout();
@@ -90,6 +111,15 @@ export default class Command {
                 this.metrics.markFailure();
             }
         }
-        return this.fallback(err);
+
+        return this.fallback(err, args)
+        .then(res => {
+            this.metrics.markFallbackSuccess();
+            return res;
+        })
+        .catch(err => {
+            this.metrics.markFallbackFailure();
+            throw err;
+        });
     }
 }

@@ -50,6 +50,14 @@ export class CommandMetrics {
         this.rollingCount.increment(RollingNumberEvent.SHORT_CIRCUITED);
     }
 
+    markFallbackFailure() {
+        this.rollingCount.increment(RollingNumberEvent.FALLBACK_FAILURE);
+    }
+
+    markFallbackSuccess() {
+        this.rollingCount.increment(RollingNumberEvent.FALLBACK_SUCCESS);
+    }
+
     incrementExecutionCount() {
         ++this.currentExecutionCount;
     }
@@ -68,6 +76,10 @@ export class CommandMetrics {
 
     getRollingCount(type) {
         return this.rollingCount.getRollingSum(type);
+    }
+
+    getCumulativeCount(type) {
+        return this.rollingCount.getCumulativeSum(type);
     }
 
     getExecutionTime(percentile) {
@@ -94,6 +106,11 @@ export class CommandMetrics {
             errorCount: errorCount,
             errorPercentage: parseInt(errorPercentage)
         }
+    }
+
+    update() {
+        this.rollingCount.getCurrentBucket();
+        this.percentileCount.getCurrentBucket();
     }
 
     reset() {

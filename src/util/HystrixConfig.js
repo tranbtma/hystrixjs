@@ -14,7 +14,8 @@ let HystrixPropertiesNames = {
     HYSTRIX_METRICS_STATISTICAL_WINDOW_IN_MS: "hystrix.metrics.statistical.window.timeInMilliseconds",
     HYSTRIX_METRICS_STATISTICAL_WINDOW_BUCKETS: "hystrix.metrics.statistical.window.bucketsNumber",
     HYSTRIX_METRICS_PERCENTILE_WINDOW_IN_MS: "hystrix.metrics.percentile.window.timeInMilliseconds",
-    HYSTRIX_METRICS_PERCENTILE_WINDOW_BUCKETS: "hystrix.metrics.percentile.window.bucketsNumber"
+    HYSTRIX_METRICS_PERCENTILE_WINDOW_BUCKETS: "hystrix.metrics.percentile.window.bucketsNumber",
+    HYSTRIX_PROMISE_IMPLEMENTATION: "hystrix.promise.implementation"
 };
 
 let defaults = {
@@ -24,13 +25,14 @@ let defaults = {
     "hystrix.circuit.errorThresholdPercentage": 50,
     "hystrix.circuit.volumeThreshold": 10,
     "hystrix.circuit.volumeThreshold.forceOverride": false,
-    "hystrix.circuit.volumeThreshold.override": 10,
+    "hystrix.circuit.volumeThreshold.override": 20,
     "hystrix.execution.timeoutInMilliseconds": 30000,
     "hystrix.metrics.statistical.window.timeInMilliseconds": 10000,
     "hystrix.metrics.statistical.window.bucketsNumber": 10,
     "hystrix.metrics.percentile.window.timeInMilliseconds": 10000,
     "hystrix.metrics.percentile.window.bucketsNumber": 10,
-    "hystrix.request.volume.rejectionThreshold": 0
+    "hystrix.request.volume.rejectionThreshold": 0,
+    "hystrix.promise.implementation": Promise,
 };
 
 class HystrixConfig {
@@ -90,10 +92,14 @@ class HystrixConfig {
         return customProperties.get(HystrixPropertiesNames.HYSTRIX_REQUEST_VOLUME_REJECTION_THRESHOLD);
     }
 
+    static get promiseImplementation() {
+        return customProperties.get(HystrixPropertiesNames.HYSTRIX_PROMISE_IMPLEMENTATION);
+    }
+    
     static resetProperties() {
         customProperties.clear();
     }
-
+    
     static init(properties = {}) {
         if (properties[HystrixPropertiesNames.HYSTRIX_CIRCUIT_ERROR_THRESHOLD_PERCENTAGE] != undefined) {
             customProperties.set(HystrixPropertiesNames.HYSTRIX_CIRCUIT_ERROR_THRESHOLD_PERCENTAGE,
@@ -170,6 +176,12 @@ class HystrixConfig {
         if (properties[HystrixPropertiesNames.HYSTRIX_REQUEST_VOLUME_REJECTION_THRESHOLD] != undefined) {
             customProperties.set(HystrixPropertiesNames.HYSTRIX_REQUEST_VOLUME_REJECTION_THRESHOLD,
                 properties[HystrixPropertiesNames.HYSTRIX_REQUEST_VOLUME_REJECTION_THRESHOLD]
+            )
+        }
+
+        if (properties[HystrixPropertiesNames.HYSTRIX_PROMISE_IMPLEMENTATION] != undefined) {
+            customProperties.set(HystrixPropertiesNames.HYSTRIX_PROMISE_IMPLEMENTATION,
+                properties[HystrixPropertiesNames.HYSTRIX_PROMISE_IMPLEMENTATION]
             )
         }
     }
